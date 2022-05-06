@@ -156,7 +156,7 @@ df_train$CabinNum <- as.numeric(df_train$CabinNum)
 actual imputing step (takes ~ 1 minute)
 
 ```{r}
-#impute only once (will try )
+#impute only once (will try more later on)
 df_train_imp <- mice(df_train,m=1,maxit=1,seed=69420)
 ```
 
@@ -232,7 +232,80 @@ df_test <- read_csv("~/Desktop/KaggleData/SpaceTitanic/test.csv")
 vis_miss(df_test)
 ```
 
-taking a look at the test dataset, it seems like we will need to 
+### Prepare Actual Test Dataset for Prediction
+
+**Note**: I'm just repeating the same code from before with slight modifications (will tidy code later)
+
+```{r}
+#split into 3 separate cols
+df_test <- df_test %>% separate(Cabin,c("CabinDeck","CabinNum","CabinSide"))
+
+#extract 1st 4 digits
+df_test$groupID <- str_extract_all(df_test$PassengerId,"\\d{4}")
+
+#T/F for duplicates
+df_test$sameGroup <- duplicated(df_test$groupID)
+
+#replace 1st entry of dupes w/ TRUE
+
+#extract groupID of dupes
+df_test_dupeID <- df_test[,c("groupID","sameGroup")] %>% filter(sameGroup==TRUE)
+df_test_dupeID <- unique(unlist(df_test_dupeID$groupID))
+
+#fill in 1st entry of dupes
+df_test$sameGroup <- ifelse(df_test$groupID %in% df_test_dupeID,
+                              TRUE,df_test$sameGroup)
+
+#doing same thing as for Cabin (will turn into function later on)
+df_test <- df_test %>% separate(Name,c("FirstName","Surname"))
+
+#T/F for duplicates
+df_test$Relatives <- duplicated(df_test$Surname)
+
+#replace 1st entry of dupes w/ TRUE
+
+#extract groupID of dupes
+df_test_relatives <- df_test[,c("Surname","Relatives")] %>% filter(Relatives==TRUE)
+df_test_relatives <- unique(unlist(df_test_relatives$Surname))
+
+#fill in 1st entry of dupes
+df_test$Relatives <- ifelse(df_test$Surname %in% df_test_relatives,
+                              TRUE,df_test$Relatives)
+
+rm(df_test_dupeID,df_test_relatives)
+
+#remove extra cols
+unnec_cols <- c("PassengerId","groupID","FirstName","Surname")
+
+df_test <- df_test[,!names(df_test) %in% unnec_cols]
+
+rm(unnec_cols)
+
+#majority of char to factor
+df_test[,c("HomePlanet","CabinDeck","CabinSide","Destination","VIP")] <- lapply(df_test[,c("HomePlanet","CabinDeck","CabinSide","Destination","VIP")],as.factor)
+
+#cabin num to numeric
+df_test$CabinNum <- as.numeric(df_test$CabinNum)
+
+#impute only once (will try more later on)
+df_test_imp <- mice(df_test,m=1,maxit=1,seed=69420)
+
+#obtain 1st imputed dataset
+df_imp_test <- complete(df_test_imp,1)
+```
+
+## Test Dataset Results
+
+```{r}
+#create predictions using model
+test_result <- predict(best_model,as.matrix(df_imp_test),type="response")
+
+#convert predicted to y/n
+forSubmission <- ifelse(test_result>0.5,"TRUE","FALSE")
+
+#convert to submission format
+
+```
 
 ## Clean global environ
 
