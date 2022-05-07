@@ -225,11 +225,11 @@ balanced accuracy = `{r} cm$overall['Accuracy']`
 ## Test on Actual Test Dataset
 
 ```{r}
-df_test <- read_csv("~/Desktop/KaggleData/SpaceTitanic/test.csv")
+df_test_orig <- read_csv("~/Desktop/KaggleData/SpaceTitanic/test.csv")
 ```
 
 ```{r}
-vis_miss(df_test)
+#vis_miss(df_test)
 ```
 
 ### Prepare Actual Test Dataset for Prediction
@@ -238,7 +238,7 @@ vis_miss(df_test)
 
 ```{r}
 #split into 3 separate cols
-df_test <- df_test %>% separate(Cabin,c("CabinDeck","CabinNum","CabinSide"))
+df_test <- df_test_orig %>% separate(Cabin,c("CabinDeck","CabinNum","CabinSide"))
 
 #extract 1st 4 digits
 df_test$groupID <- str_extract_all(df_test$PassengerId,"\\d{4}")
@@ -292,25 +292,35 @@ df_test_imp <- mice(df_test,m=1,maxit=1,seed=69420)
 
 #obtain 1st imputed dataset
 df_imp_test <- complete(df_test_imp,1)
+
+#convert to matrix
+df_imp_matrix <- data.matrix(df_imp_test)
 ```
 
 ## Test Dataset Results
 
 ```{r}
 #create predictions using model
-test_result <- predict(best_model,as.matrix(df_imp_test),type="response")
+test_result <- predict(best_model,df_imp_matrix,type="response")
 
 #convert predicted to y/n
-forSubmission <- ifelse(test_result>0.5,"TRUE","FALSE")
+forSubmission <- ifelse(test_result>0.5,"True","False")
 
 #convert to submission format
+df_submission <- data.frame(PassengerID=df_test_orig[,1],forSubmission)
+names(df_submission)[2] <- "Transported"
+```
 
+## Export Submission DF
+
+```{r}
+write_csv(df_submission,"./Output/submission.csv")
 ```
 
 ## Clean global environ
 
 ```{r}
-#rm
+#rm()
 ```
 
 ## Notes/Next Steps
